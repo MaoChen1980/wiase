@@ -32,17 +32,19 @@
 
 HOST="localhost"
 PORT="6000"
-VERSION="Release"
+VERSION="Debug"
 BINARY="WEBase"
 TEAM_NAME="WEBase"
+PLAYER_COUNT=11
 
-while getopts "h:p:v:b:t:" flag; do
+while getopts "h:p:v:b:t:n:" flag; do
 	case "$flag" in
 	h) HOST=$OPTARG ;;
 	p) PORT=$OPTARG ;;
 	v) VERSION=$OPTARG ;;
 	b) BINARY=$OPTARG ;;
 	t) TEAM_NAME=$OPTARG ;;
+	n) PLAYER_COUNT=$OPTARG ;;
 	esac
 done
 
@@ -69,7 +71,7 @@ $CLIENT $G_PARAM &
 sleep 5
 
 i=2
-while [ $i -le 11 ]; do
+while [ $i -le $PLAYER_COUNT ]; do
 	echo ">>>>>>>>>>>>>>>>>>>>>> $TEAM_NAME Player: $i"
 	$CLIENT $N_PARAM &
 	sleep $SLEEP_TIME

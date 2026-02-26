@@ -26,10 +26,14 @@ first: debug
 
 all: debug release
 
-debug:
+debug: $(DEBUG)/WEBase
+
+$(DEBUG)/WEBase:
 	cd ${DEBUG}; make -j all
 
-release:
+release: $(RELEASE)/WEBase
+
+$(RELEASE)/WEBase:
 	cd ${RELEASE}; make -j all
 
 clean:
