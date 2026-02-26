@@ -126,6 +126,10 @@ void InterceptInfo::AnalyseInterceptSolution(const BallState &ball,
 void InterceptInfo::CalcIdealInterception(const BallState &ball,
                                           PlayerInterceptInfo *pInfo,
                                           const double &buffer) {
+  if (!pInfo || !pInfo->mpPlayer) {
+    return;
+  }
+  
   const int idle_cycle = pInfo->mpPlayer->GetIdleCycle();
 
   // step 1. 求解简化截球模型
@@ -174,6 +178,10 @@ void InterceptInfo::CalcIdealInterception(const BallState &ball,
 void InterceptInfo::CalcLooseInterception(const BallState &ball,
                                           PlayerInterceptInfo *pInfo,
                                           const double &buffer) {
+  if (!pInfo || !pInfo->mpPlayer) {
+    return;
+  }
+  
   CalcIdealInterception(ball, pInfo, buffer);
   AnalyseInterceptSolution(ball, pInfo);
 }
@@ -181,6 +189,10 @@ void InterceptInfo::CalcLooseInterception(const BallState &ball,
 void InterceptInfo::CalcTightInterception(const BallState &ball,
                                           PlayerInterceptInfo *pInfo,
                                           bool can_inverse) {
+  if (!pInfo || !pInfo->mpPlayer) {
+    return;
+  }
+  
   CalcIdealInterception(
       ball, pInfo,
       pInfo->mpPlayer->GetKickableArea()); // TODO: 改成从外面传进来 buffer

@@ -192,11 +192,13 @@ void BehaviorPassPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
             continue;
           }
           PlayerInterceptInfo *a = mInterceptInfo.GetPlayerInterceptInfo(i);
-          mInterceptInfo.CalcTightInterception(SimBall, a, true);
-          if (MinTmInter > (*a).mMinCycle) {
-            MinTm = i;
-            MinTmInter = (*a).mMinCycle;
-            MinTmPos = (*a).mInterPos;
+          if (a) {
+            mInterceptInfo.CalcTightInterception(SimBall, a, true);
+            if (MinTmInter > (*a).mMinCycle) {
+              MinTm = i;
+              MinTmInter = (*a).mMinCycle;
+              MinTmPos = (*a).mInterPos;
+            }
           }
         }
         for (int i = 1; i <= 11; i++) {
@@ -206,9 +208,11 @@ void BehaviorPassPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
             continue;
           }
           PlayerInterceptInfo *a = mInterceptInfo.GetPlayerInterceptInfo(-i);
-          mInterceptInfo.CalcTightInterception(SimBall, a, true);
-          if (MinOppInter > (*a).mMinCycle) {
-            MinOppInter = (*a).mMinCycle;
+          if (a) {
+            mInterceptInfo.CalcTightInterception(SimBall, a, true);
+            if (MinOppInter > (*a).mMinCycle) {
+              MinOppInter = (*a).mMinCycle;
+            }
           }
         }
         if (MinOppInter > MinTmInter) {
