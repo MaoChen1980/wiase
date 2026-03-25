@@ -39,16 +39,21 @@
 #include "BehaviorSetplay.h"
 #include "Strategy.h"
 #include "TimeTest.h"
+#include <cstdlib>
 
+static int decision_count = 0;
 bool DecisionTree::Decision(Agent &agent) {
   Assert(agent.GetSelf().IsAlive());
+  fprintf(stderr, "[Decision] count=%d\n", ++decision_count);
 
   ActiveBehavior beh = Search(agent, 1);
 
   if (beh.GetType() != BT_None) {
     agent.SetActiveBehaviorInAct(beh.GetType());
     Assert(&beh.GetAgent() == &agent);
-    return beh.Execute();
+    bool result = beh.Execute();
+
+    return result;
   }
   return false;
 }
@@ -89,7 +94,64 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
   agent.SaveActiveBehaviorList(
       behavior_list); // behavior_list里面存储了本周期所有behavior决策出的最优activebehavior，这里统一保存一下，供特定behavior下周期plan时用
 
-  behavior_list.sort(std::greater<ActiveBehavior>());
+  // 收集所有候选行为的数据（与选择逻辑独立）
+  CollectAllCandidates(agent);
 
+  if (use_nn_ && nn_.Loaded()) {
+    // NN-based selection
+    float best_value = -1e9f;
+    ActiveBehavior* best = nullptr;
+
+    for (auto& beh : behavior_list) {
+      // Build 113-dim feature vector for this candidate
+      std::vector<float> features = m_data_collector.BuildFeatureVector(
+          agent, beh.GetType(), beh.mTarget, beh.mPower);
+
+      // NN inference
+      float nn_value = nn_.Forward(features);
+      if (nn_value > best_value) {
+        best_value = nn_value;
+        best = &beh;
+      }
+    }
+
+    if (best != nullptr) {
+      return *best;
+    }
+  }
+
+  // Rule-based selection (existing)
+  behavior_list.sort(std::greater<ActiveBehavior>());
   return behavior_list.front();
+}
+
+void DecisionTree::CollectAllCandidates(Agent &agent) {
+  // 直接调用各个Planner生成所有候选，收集数据
+  // 这样与原来的behavior_list选择逻辑独立
+
+  if (agent.GetSelf().IsIdling()) {
+    return;
+  }
+
+  std::list<ActiveBehavior> all_candidates;
+
+  if (agent.GetSelf().IsGoalie()) {
+    MutexPlan<BehaviorPenaltyPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorSetplayPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorAttackPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorGoaliePlanner>(agent, all_candidates);
+  } else {
+    MutexPlan<BehaviorPenaltyPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorSetplayPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorAttackPlanner>(agent, all_candidates);
+    MutexPlan<BehaviorDefensePlanner>(agent, all_candidates);
+  }
+
+  // 为每个候选收集数据
+  for (auto& beh : all_candidates) {
+    if (beh.GetType() != BT_None && beh.mEvaluation > 0) {
+      m_data_collector.Collect(agent, beh.GetType(), beh.mTarget,
+                               beh.mPower, beh.mEvaluation);
+    }
+  }
 }

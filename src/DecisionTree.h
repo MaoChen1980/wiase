@@ -33,13 +33,15 @@
 #define DECISIONTREE_H_
 
 #include "BehaviorBase.h"
+#include "DataCollector.h"
+#include "NNValueInference.h"
 #include <list>
 
 class Agent;
 
 class DecisionTree {
 public:
-  DecisionTree() {}
+  DecisionTree() : use_nn_(false) {}
   virtual ~DecisionTree() {}
 
   /**
@@ -47,6 +49,13 @@ public:
    * @param agent
    */
   bool Decision(Agent &agent);
+  
+  // 获取数据收集器
+  DataCollector* GetDataCollector() { return &m_data_collector; }
+  
+  void SetUseNN(bool use) { use_nn_ = use; }
+  bool IsUseNN() const { return use_nn_; }
+  NNValueInference* GetNN() { return &nn_; }
 
 private:
   /**
@@ -61,12 +70,19 @@ private:
   ActiveBehavior
   GetBestActiveBehavior(Agent &agent, std::list<ActiveBehavior> &behavior_list);
 
+  // 收集所有候选行为的数据（与选择逻辑独立）
+  void CollectAllCandidates(Agent &agent);
+
   template <typename BehaviorDerived>
   bool MutexPlan(Agent &agent,
                  std::list<ActiveBehavior> &active_behavior_list) {
     BehaviorDerived(agent).Plan(active_behavior_list);
     return !active_behavior_list.empty();
   }
+  
+  DataCollector m_data_collector;
+  NNValueInference nn_;
+  bool use_nn_;
 };
 
 #endif /* DECISIONTREE_H_ */

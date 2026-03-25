@@ -31,10 +31,14 @@
 
 #include "Player.h"
 #include "Agent.h"
+#include "PlayerParam.h"
 #include "CommandSender.h"
 #include "CommunicateSystem.h"
 #include "Dasher.h"
 #include "DecisionTree.h"
+#include "DataCollector.h"
+#include <ctime>
+#include <unistd.h>
 #include "DynamicDebug.h"
 #include "Formation.h"
 #include "Logger.h"
@@ -45,9 +49,38 @@
 #include "VisualSystem.h"
 #include "WorldModel.h"
 
-Player::Player() : mpDecisionTree(new DecisionTree) {}
+Player::Player() : mpDecisionTree(new DecisionTree) {
+    const char* use_nn = getenv("USE_NN");
+    const char* model_path = getenv("NN_MODEL");
 
-Player::~Player() { delete mpDecisionTree; }
+    if (use_nn && strcmp(use_nn, "1") == 0) {
+        mpDecisionTree->SetUseNN(true);
+        if (model_path) {
+            mpDecisionTree->GetNN()->Load(model_path);
+            fprintf(stderr, "[Player] NN enabled (USE_NN=1), model: %s\n", model_path);
+        } else {
+            fprintf(stderr, "[Player] NN enabled (USE_NN=1), no model loaded\n");
+        }
+    } else if (model_path) {
+        // 兼容旧逻辑：只设置 NN_MODEL 也启用 NN
+        mpDecisionTree->GetNN()->Load(model_path);
+        mpDecisionTree->SetUseNN(true);
+        fprintf(stderr, "[Player] NN enabled (NN_MODEL): %s\n", model_path);
+    }
+}
+
+Player::~Player() {
+    DataCollector* collector = mpDecisionTree->GetDataCollector();
+    if (collector && collector->NumSamples() > 0) {
+        char filename[256];
+        snprintf(filename, sizeof(filename), "%s/data_%d_%d.json",
+                 PlayerParam::instance().logDir().c_str(),
+                 (int)time(NULL), (int)getpid());
+        collector->Save(filename);
+        fprintf(stderr, "[DataCollector] Saved %d samples to %s\n", collector->NumSamples(), filename);
+    }
+    delete mpDecisionTree;
+}
 
 void Player::SendOptionToServer() {
   while (!mpParser->IsClangOk()) {

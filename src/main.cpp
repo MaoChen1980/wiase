@@ -48,6 +48,9 @@
 #include <unistd.h>
 #endif
 
+// Forward declaration for signal handler
+extern Client* s_client;
+
 namespace {
 #ifndef WIN32
 void create_dump(void) {
@@ -63,6 +66,16 @@ void signal_catcher(int sig) {
   signal(sig, signal_catcher);
 
   std::cerr << "catch signal " << sig << std::endl;
+
+  if (sig == SIGTERM || sig == SIGINT || sig == SIGQUIT) {
+    // 优雅退出 - 保存数据
+    std::cerr << "exiting gracefully" << std::endl;
+    if (::s_client) {
+      delete ::s_client;
+      ::s_client = 0;
+    }
+    exit(0);
+  }
 
   create_dump(); //先产生coredump
 
@@ -81,6 +94,8 @@ void signal_catcher(int sig) {
 } // namespace
 
 void RegisterSignalHandler();
+extern Client* s_client;  // forward declaration for signal handler
+Client* s_client = 0;  // global pointer for signal handler cleanup
 
 //==============================================================================
 int main(int argc, char *argv[]) {
@@ -89,23 +104,21 @@ int main(int argc, char *argv[]) {
   ServerParam::instance().init(argc, argv);
   PlayerParam::instance().init(argc, argv);
 
-  Client *client = 0;
-
   if (PlayerParam::instance().isCoach()) {
-    client = new Coach;
+    s_client = new Coach;
   } else if (PlayerParam::instance().isTrainer()) {
-    client = new Trainer;
+    s_client = new Trainer;
   } else {
-    client = new Player;
+    s_client = new Player;
   }
 
   if (PlayerParam::instance().DynamicDebugMode()) {
-    client->RunDynamicDebug(); // 进入动态调试模式
+    s_client->RunDynamicDebug(); // 进入动态调试模式
   } else {
-    client->RunNormal(); // 进入正常比赛模式
+    s_client->RunNormal(); // 进入正常比赛模式
   }
 
-  delete client;
+  delete s_client;
 
   return 0;
 }
@@ -114,6 +127,8 @@ void RegisterSignalHandler() {
 #ifndef WIN32
   if (signal(SIGINT, signal_catcher) == SIG_ERR) //中断
     perror("SIGINT"), exit(1);
+  if (signal(SIGTERM, signal_catcher) == SIG_ERR) //终止
+    perror("SIGTERM"), exit(1);
   if (signal(SIGQUIT, signal_catcher) == SIG_ERR) //退出
     perror("SIGQUIT"), exit(1);
   //	if(signal(SIGABRT, signal_catcher) == SIG_ERR)
