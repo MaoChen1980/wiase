@@ -116,15 +116,22 @@ void BehaviorShootPlanner::Plan(list<ActiveBehavior> &behavior_list) {
   if (mSelfState.GetPos().X() >
       ServerParam::instance().pitchRectanglar().Right() -
           PlayerParam::instance().shootMaxDistance()) {
+    // 球门柱往里收一点，提高射门准确率
+    const double kInwardOffset = 0.5;  // 向球门内侧偏移0.5米
+    Vector leftPost = ServerParam::instance().oppLeftGoalPost();
+    Vector rightPost = ServerParam::instance().oppRightGoalPost();
+    // 左边门柱往下移，右边门柱往上移（都向球门中心靠近）
+    leftPost.SetY(leftPost.Y() > 0 ? leftPost.Y() - kInwardOffset : leftPost.Y() + kInwardOffset);
+    rightPost.SetY(rightPost.Y() > 0 ? rightPost.Y() - kInwardOffset : rightPost.Y() + kInwardOffset);
+
     AngleDeg left =
-        (ServerParam::instance().oppLeftGoalPost() - mSelfState.GetPos()).Dir();
+        (leftPost - mSelfState.GetPos()).Dir();
     AngleDeg right =
-        (ServerParam::instance().oppRightGoalPost() - mSelfState.GetPos())
+        (rightPost - mSelfState.GetPos())
             .Dir();
     Vector target;
     AngleDeg interval;
-    Line c(ServerParam::instance().oppLeftGoalPost(),
-           ServerParam::instance().oppRightGoalPost());
+    Line c(leftPost, rightPost);
     AngleDeg shootDir =
         mPositionInfo.GetShootAngle(left, right, mSelfState, interval);
     if (interval < mSelfState.GetRandAngle(
