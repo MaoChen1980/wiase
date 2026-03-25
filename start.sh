@@ -79,8 +79,8 @@ sleep 1
 if [ $ENABLE_NN -eq 1 ]; then
 	export USE_NN=1
 	if [ -z "$NN_MODEL" ]; then
-		if [ -f "models/value_nn_113d.bin" ]; then
-			export NN_MODEL="models/value_nn_113d.bin"
+		if [ -f "models/value_nn.bin" ]; then
+			export NN_MODEL="models/value_nn.bin"
 			echo "[NN] Using model: $NN_MODEL"
 		fi
 	fi
