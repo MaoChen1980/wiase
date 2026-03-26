@@ -59,12 +59,9 @@ void BehaviorAttackPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
   if (!mActiveBehaviorList.empty()) {
     mActiveBehaviorList.sort(std::greater<ActiveBehavior>());
 
-    // 输出前N个候选（而不是只输出1个），让NN有更多选择
-    int numCandidates = std::min((int)mActiveBehaviorList.size(), 5);
-    auto it = mActiveBehaviorList.begin();
-    for (int i = 0; i < numCandidates; ++i) {
-      behavior_list.push_back(*it);
-      ++it;
+    // 输出所有候选，让NN评估所有选项
+    for (auto& beh : mActiveBehaviorList) {
+      behavior_list.push_back(beh);
     }
 
     // 视觉请求保持不变
