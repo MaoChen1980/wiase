@@ -39,19 +39,29 @@ class ValueNN(nn.Module):
         return self.net(x)
 
 class SoccerDataset(Dataset):
-    def __init__(self, data_file):
+    def __init__(self, data_file, max_samples=100000):
         self.features = []
         self.values = []
 
+        # 先采样，避免内存溢出
+        import random
+        lines = []
         with open(data_file, 'r') as f:
             for line in f:
-                try:
-                    sample = json.loads(line.strip())
-                    if len(sample['f']) == INPUT_DIM:
-                        self.features.append(sample['f'])
-                        self.values.append(sample['v'])
-                except:
-                    continue
+                lines.append(line)
+
+        if len(lines) > max_samples:
+            print(f"Sampling {max_samples} from {len(lines)} lines...")
+            lines = random.sample(lines, max_samples)
+
+        for line in lines:
+            try:
+                sample = json.loads(line.strip())
+                if len(sample['f']) == INPUT_DIM:
+                    self.features.append(sample['f'])
+                    self.values.append(sample['v'])
+            except:
+                continue
 
         self.features = torch.tensor(self.features, dtype=torch.float32)
         self.values = torch.tensor(self.values, dtype=torch.float32).unsqueeze(1)
