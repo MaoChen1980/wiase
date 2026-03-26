@@ -58,13 +58,21 @@ void BehaviorAttackPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
 
   if (!mActiveBehaviorList.empty()) {
     mActiveBehaviorList.sort(std::greater<ActiveBehavior>());
-    behavior_list.push_back(mActiveBehaviorList.front());
 
-    if (mActiveBehaviorList.size() > 1) { //允许非最优行为提交视觉请求
+    // 输出前N个候选（而不是只输出1个），让NN有更多选择
+    int numCandidates = std::min((int)mActiveBehaviorList.size(), 5);
+    auto it = mActiveBehaviorList.begin();
+    for (int i = 0; i < numCandidates; ++i) {
+      behavior_list.push_back(*it);
+      ++it;
+    }
+
+    // 视觉请求保持不变
+    if (mActiveBehaviorList.size() > 1) {
       double plus = 1.0;
-      ActiveBehaviorPtr it = mActiveBehaviorList.begin();
-      for (++it; it != mActiveBehaviorList.end(); ++it) {
-        it->SubmitVisualRequest(plus);
+      ActiveBehaviorPtr vit = mActiveBehaviorList.begin();
+      for (++vit; vit != mActiveBehaviorList.end(); ++vit) {
+        vit->SubmitVisualRequest(plus);
         plus *= 2.0;
       }
     }

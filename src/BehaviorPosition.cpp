@@ -80,8 +80,8 @@ void BehaviorPositionPlanner::Plan(ActiveBehaviorList &behavior_list) {
   if (mWorldState.GetPlayMode() > PM_Opp_Mode)
     return;
 
-  ActiveBehavior position(mAgent, BT_Position);
   Vector target;
+  ActiveBehavior position(mAgent, BT_Position);
   position.mBuffer = 1.0;
   target = mStrategy.GetTeammateSBSPPosition(mSelfState.GetUnum(),
                                              mBallState.GetPos());

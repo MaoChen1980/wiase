@@ -143,22 +143,26 @@ void BehaviorShootPlanner::Plan(list<ActiveBehavior> &behavior_list) {
 
     Ray f(mSelfState.GetPos(), shootDir);
     c.Intersection(f, target);
-    if (Tackler::instance().CanTackleToDir(mAgent, shootDir) &&
-        Tackler::instance().GetBallVelAfterTackle(mAgent, shootDir).Mod() >
-            ServerParam::instance().ballSpeedMax() - 0.05) {
-      ActiveBehavior shoot(mAgent, BT_Shoot, BDT_Shoot_Tackle);
-      shoot.mTarget = target;
-      shoot.mAngle = shootDir;
-      shoot.mEvaluation = 2.0 + FLOAT_EPS;
-      behavior_list.push_back(shoot);
-    }
 
-    else {
-      ActiveBehavior shoot(mAgent, BT_Shoot);
-      shoot.mTarget = target;
-      shoot.mEvaluation = 2.0 + FLOAT_EPS;
+    // 生成3个射门候选: 左门柱、中间、右门柱
+    Vector shootTargets[3] = {leftPost, target, rightPost};
+    AngleDeg shootDirs[3] = {left, shootDir, right};
 
-      behavior_list.push_back(shoot);
+    for (int i = 0; i < 3; ++i) {
+      if (Tackler::instance().CanTackleToDir(mAgent, shootDirs[i]) &&
+          Tackler::instance().GetBallVelAfterTackle(mAgent, shootDirs[i]).Mod() >
+              ServerParam::instance().ballSpeedMax() - 0.05) {
+        ActiveBehavior shoot(mAgent, BT_Shoot, BDT_Shoot_Tackle);
+        shoot.mTarget = shootTargets[i];
+        shoot.mAngle = shootDirs[i];
+        shoot.mEvaluation = 2.0 + FLOAT_EPS;
+        mActiveBehaviorList.push_back(shoot);
+      } else {
+        ActiveBehavior shoot(mAgent, BT_Shoot);
+        shoot.mTarget = shootTargets[i];
+        shoot.mEvaluation = 2.0 + FLOAT_EPS;
+        mActiveBehaviorList.push_back(shoot);
+      }
     }
   }
 }

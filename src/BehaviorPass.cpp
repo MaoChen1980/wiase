@@ -132,16 +132,21 @@ void BehaviorPassPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
         Evaluation::instance().EvaluatePosition(pass.mTarget, true);
 
     pass.mAngle = (pass.mTarget - mSelfState.GetPos()).Dir();
-    pass.mKickSpeed = ServerParam::instance().GetBallSpeed(
-        5, pass.mTarget.Dist(mBallState.GetPos()));
-    pass.mKickSpeed =
-        MinMax(2.0, pass.mKickSpeed,
-               Kicker::instance().GetMaxSpeed(mAgent, pass.mAngle, 3));
-    if (oppClose) { // in oppnent control, clear it
-      pass.mDetailType = BDT_Pass_Clear;
-    } else
-      pass.mDetailType = BDT_Pass_Direct;
-    mActiveBehaviorList.push_back(pass);
+
+    // 生成3种传球力量: 快速(3步)、中速(5步)、慢速(7步)
+    double power_levels[] = {3.0, 5.0, 7.0};
+    for (int p = 0; p < 3; ++p) {
+      pass.mKickSpeed = ServerParam::instance().GetBallSpeed(
+          power_levels[p], pass.mTarget.Dist(mBallState.GetPos()));
+      pass.mKickSpeed =
+          MinMax(2.0, pass.mKickSpeed,
+                 Kicker::instance().GetMaxSpeed(mAgent, pass.mAngle, 3));
+      if (oppClose) { // in oppnent control, clear it
+        pass.mDetailType = BDT_Pass_Clear;
+      } else
+        pass.mDetailType = BDT_Pass_Direct;
+      mActiveBehaviorList.push_back(pass);
+    }
   }
   if (!mActiveBehaviorList.empty()) {
     mActiveBehaviorList.sort(std::greater<ActiveBehavior>());
