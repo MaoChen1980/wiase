@@ -40,10 +40,11 @@ PLAYER_COUNT=11
 ENABLE_NN=0
 MATCH_DURATION=0
 RUN_OPPONENT=0
+WAIT_FOR_EXTERNAL_OPPONENT=0
 OPPONENT_TEAM="Opponent"
 
 # 解析参数
-while getopts "h:p:v:b:t:n:m:ur" flag; do
+while getopts "h:p:v:b:t:n:m:ure" flag; do
 	case "$flag" in
 	h) HOST=$OPTARG ;;
 	p) PORT=$OPTARG ;;
@@ -54,6 +55,7 @@ while getopts "h:p:v:b:t:n:m:ur" flag; do
 	m) MATCH_DURATION=$OPTARG ;;
 	u) ENABLE_NN=1 ;;
 	r) RUN_OPPONENT=1 ;;
+	e) WAIT_FOR_EXTERNAL_OPPONENT=1 ;;
 	esac
 done
 
@@ -65,6 +67,7 @@ echo "Host: $HOST:$PORT"
 echo "Version: $VERSION"
 echo "NN Mode: $ENABLE_NN"
 echo "Run Opponent: $RUN_OPPONENT"
+echo "Wait for External Opp: $WAIT_FOR_EXTERNAL_OPPONENT"
 if [ $MATCH_DURATION -gt 0 ]; then
 	echo "Match Duration: ${MATCH_DURATION} minutes"
 fi
@@ -119,6 +122,27 @@ sleep 3
 echo ">>>>>>>>>>>>>>>>>>>>>> $TEAM_NAME Coach"
 $CLIENT $N_PARAM -coach &
 sleep 1
+
+# 等待外部对手启动
+if [ $WAIT_FOR_EXTERNAL_OPPONENT -eq 1 ]; then
+	echo "[4/6] Waiting for external opponent to connect..."
+	echo "       Please start opponent team manually, e.g.:"
+	echo "       cd /Users/chenmao/Code/wrighteagle2 && ./start.sh -t TeamB -h localhost"
+	while true; do
+		sleep 5
+		# 检查是否有对手连接
+		if pgrep -f "rcssserver" > /dev/null; then
+			echo "       Server still running, waiting for opponent..."
+		else
+			echo "       Server stopped, exiting..."
+			exit 1
+		fi
+		# 如果设置了定时，等待时间到了就退出
+		if [ $MATCH_DURATION -gt 0 ]; then
+			break
+		fi
+	done
+fi
 
 # 启动对手 (右侧)
 if [ $RUN_OPPONENT -eq 1 ]; then

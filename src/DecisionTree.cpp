@@ -42,9 +42,19 @@
 #include <cstdlib>
 
 static int decision_count = 0;
+static PlayMode last_play_mode = PM_Before_Kick_Off;
+
 bool DecisionTree::Decision(Agent &agent) {
   Assert(agent.GetSelf().IsAlive());
   fprintf(stderr, "[Decision] count=%d\n", ++decision_count);
+
+  // RL: 检测到新的kick off，重置序列缓冲区
+  PlayMode current_mode = agent.GetWorldState().GetPlayMode();
+  if (current_mode == PM_Before_Kick_Off && last_play_mode != PM_Before_Kick_Off) {
+    m_data_collector.ResetSequence();
+    fprintf(stderr, "[DataCollector] Sequence buffer reset at kick off\n");
+  }
+  last_play_mode = current_mode;
 
   ActiveBehavior beh = Search(agent, 1);
 
@@ -52,6 +62,12 @@ bool DecisionTree::Decision(Agent &agent) {
     agent.SetActiveBehaviorInAct(beh.GetType());
     Assert(&beh.GetAgent() == &agent);
     bool result = beh.Execute();
+
+    // RL: 检查带球成功并给予奖励
+    m_data_collector.CheckDribbleSuccess(agent);
+
+    // RL: 检查射门结果并给予奖励
+    m_data_collector.CheckShootResult(agent);
 
     return result;
   }
@@ -79,6 +95,7 @@ ActiveBehavior DecisionTree::Search(Agent &agent, int step) {
     }
 
     if (!active_behavior_list.empty()) {
+      fprintf(stderr, "[Search] active_behavior_list not empty, size=%zu\n", active_behavior_list.size());
       return GetBestActiveBehavior(agent, active_behavior_list);
     } else {
       return ActiveBehavior(agent, BT_None);
@@ -97,7 +114,36 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
   // 收集所有候选行为的数据（与选择逻辑独立）
   CollectAllCandidates(agent);
 
-  if (use_nn_ && nn_.Loaded()) {
+  // RL: 添加所有候选到序列缓冲区（无论NN是否加载）
+  for (auto& beh : behavior_list) {
+    // Build 113-dim feature vector for this candidate
+    std::vector<float> features = m_data_collector.BuildFeatureVector(
+        agent, beh.GetType(), beh.mTarget, beh.mPower);
+
+    float nn_value = 0.0f;
+    if (use_nn_ && nn_.Loaded()) {
+      // NN inference
+      nn_value = nn_.Forward(features);
+    }
+
+    // RL: 添加到序列缓冲区
+    m_data_collector.AddToSequence(agent, beh.GetType(), beh.mTarget, beh.mPower, nn_value);
+  }
+
+  fprintf(stderr, "[Decision] unum=%d Before NN check: use_nn_=%d\n", agent.GetSelf().GetUnum(), use_nn_ ? 1 : 0);
+    fflush(stderr);
+
+    // RL探索策略: 如果有shoot候选，100%强制选择shoot（用于学习射门RL）
+    // 这个逻辑在NN选择之前执行，确保射门能被选中
+    for (auto& beh : behavior_list) {
+      if (beh.GetType() == BT_Shoot) {
+        fprintf(stderr, "[Decision] Force shoot selected! eval=%.2f\n", beh.mEvaluation);
+        m_data_collector.StartShootTracking(agent, beh.mTarget);
+        return beh;
+      }
+    }
+
+    if (use_nn_ && nn_.Loaded()) {
     // NN-based selection
     float best_value = -1e9f;
     ActiveBehavior* best = nullptr;
@@ -109,6 +155,7 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
 
       // NN inference
       float nn_value = nn_.Forward(features);
+
       if (nn_value > best_value) {
         best_value = nn_value;
         best = &beh;
@@ -116,18 +163,33 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
     }
 
     if (best != nullptr) {
+      // RL: 如果选中带球或射门，开始追踪
+      if (best->GetType() == BT_Dribble) {
+        m_data_collector.StartDribbleTracking(agent);
+      } else if (best->GetType() == BT_Shoot) {
+        m_data_collector.StartShootTracking(agent, best->mTarget);
+      }
       return *best;
     }
   }
 
   // Rule-based selection (existing)
   behavior_list.sort(std::greater<ActiveBehavior>());
+
+  // RL: 如果选中带球或射门，开始追踪
+  if (behavior_list.front().GetType() == BT_Dribble) {
+    m_data_collector.StartDribbleTracking(agent);
+  } else if (behavior_list.front().GetType() == BT_Shoot) {
+    m_data_collector.StartShootTracking(agent, behavior_list.front().mTarget);
+  }
+
   return behavior_list.front();
 }
 
 void DecisionTree::CollectAllCandidates(Agent &agent) {
-  // 直接调用各个Planner生成所有候选，收集数据
-  // 这样与原来的behavior_list选择逻辑独立
+  // 直接调用各个Planner生成所有候选
+  // 原来用于收集数据，现在仅保留结构用于RL序列收集
+  // 注意：原有的 Collect() 调用已禁用，现在是增量学习模式
 
   if (agent.GetSelf().IsIdling()) {
     return;
@@ -147,11 +209,5 @@ void DecisionTree::CollectAllCandidates(Agent &agent) {
     MutexPlan<BehaviorDefensePlanner>(agent, all_candidates);
   }
 
-  // 为每个候选收集数据
-  for (auto& beh : all_candidates) {
-    if (beh.GetType() != BT_None && beh.mEvaluation > 0) {
-      m_data_collector.Collect(agent, beh.GetType(), beh.mTarget,
-                               beh.mPower, beh.mEvaluation);
-    }
-  }
+  // 原有数据收集已禁用，现在只通过 GetBestActiveBehavior 中的 AddToSequence 收集RL数据
 }

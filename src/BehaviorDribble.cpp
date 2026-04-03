@@ -151,7 +151,7 @@ void BehaviorDribblePlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
   if (mSelfState.IsGoalie())
     return;
 
-  for (AngleDeg dir = -90.0; dir < 90.0; dir += 2.5) {
+  for (AngleDeg dir = -90.0; dir <= 90.0; dir += 10.0) {
     ActiveBehavior dribble(mAgent, BT_Dribble, BDT_Dribble_Normal);
 
     dribble.mAngle = dir;
@@ -184,7 +184,7 @@ void BehaviorDribblePlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
   }
   double speed = mSelfState.GetEffectiveSpeedMax();
 
-  for (AngleDeg dir = -90.0; dir < 90.0; dir += 2.5) {
+  for (AngleDeg dir = -90.0; dir <= 90.0; dir += 10.0) {
     ActiveBehavior dribble(mAgent, BT_Dribble, BDT_Dribble_Fast);
     dribble.mKickSpeed = speed;
     dribble.mAngle = dir;

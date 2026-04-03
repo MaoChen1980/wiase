@@ -41,7 +41,18 @@ class Agent;
 
 class DecisionTree {
 public:
-  DecisionTree() : use_nn_(false) {}
+  DecisionTree() : use_nn_(false) {
+    // Check USE_NN and NN_MODEL env directly in constructor
+    const char* use_nn_env = getenv("USE_NN");
+    const char* model_path = getenv("NN_MODEL");
+    if ((use_nn_env && strcmp(use_nn_env, "1") == 0) || model_path) {
+      use_nn_ = true;
+      fprintf(stderr, "[DecisionTree] Constructor: NN enabled (USE_NN=%s, NN_MODEL=%s), use_nn_=true\n",
+              use_nn_env ? "1" : "0", model_path ? model_path : "null");
+    } else {
+      fprintf(stderr, "[DecisionTree] Constructor: NN disabled, use_nn_=false\n");
+    }
+  }
   virtual ~DecisionTree() {}
 
   /**
@@ -53,7 +64,10 @@ public:
   // 获取数据收集器
   DataCollector* GetDataCollector() { return &m_data_collector; }
   
-  void SetUseNN(bool use) { use_nn_ = use; }
+  void SetUseNN(bool use) {
+    fprintf(stderr, "[DecisionTree] SetUseNN called: use=%d\n", use ? 1 : 0);
+    use_nn_ = use;
+  }
   bool IsUseNN() const { return use_nn_; }
   NNValueInference* GetNN() { return &nn_; }
 

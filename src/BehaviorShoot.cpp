@@ -113,9 +113,14 @@ void BehaviorShootPlanner::Plan(list<ActiveBehavior> &behavior_list) {
     return;
   }
 
-  if (mSelfState.GetPos().X() >
-      ServerParam::instance().pitchRectanglar().Right() -
-          PlayerParam::instance().shootMaxDistance()) {
+  // 射门条件：距离对方球门55米以内，且可踢球
+  double dist_to_goal = ServerParam::instance().pitchRectanglar().Right() - mSelfState.GetPos().X();
+  static int debug_counter = 0;
+  if (debug_counter++ % 100 == 0) {
+    fprintf(stderr, "[ShootDebug] posX=%.2f dist_to_goal=%.2f kickable=%d\n",
+            mSelfState.GetPos().X(), dist_to_goal, mSelfState.IsKickable());
+  }
+  if (dist_to_goal < 55.0 && mSelfState.IsKickable()) {
     // 球门柱往里收一点，提高射门准确率
     const double kInwardOffset = 0.5;  // 向球门内侧偏移0.5米
     Vector leftPost = ServerParam::instance().oppLeftGoalPost();
@@ -134,12 +139,13 @@ void BehaviorShootPlanner::Plan(list<ActiveBehavior> &behavior_list) {
     Line c(leftPost, rightPost);
     AngleDeg shootDir =
         mPositionInfo.GetShootAngle(left, right, mSelfState, interval);
-    if (interval < mSelfState.GetRandAngle(
-                       ServerParam::instance().maxPower(),
-                       ServerParam::instance().ballSpeedMax(), mBallState) *
-                       3) {
-      return;
-    }
+    // 暂时禁用interval检查，确保射门候选能被生成用于RL学习
+    // if (interval < mSelfState.GetRandAngle(
+    //                    ServerParam::instance().maxPower(),
+    //                    ServerParam::instance().ballSpeedMax(), mBallState) *
+    //                    3) {
+    //   return;
+    // }
 
     Ray f(mSelfState.GetPos(), shootDir);
     c.Intersection(f, target);
@@ -164,5 +170,7 @@ void BehaviorShootPlanner::Plan(list<ActiveBehavior> &behavior_list) {
         mActiveBehaviorList.push_back(shoot);
       }
     }
+    fprintf(stderr, "[Shoot] Generated %zu shoot candidates at posX=%.2f dist=%.2f\n",
+            mActiveBehaviorList.size(), mSelfState.GetPos().X(), dist_to_goal);
   }
 }

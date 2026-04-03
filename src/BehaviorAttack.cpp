@@ -56,6 +56,13 @@ void BehaviorAttackPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
   BehaviorPositionPlanner(mAgent).Plan(mActiveBehaviorList);
   BehaviorHoldPlanner(mAgent).Plan(mActiveBehaviorList);
 
+  // Debug: 打印候选列表内容
+  fprintf(stderr, "[AttackPlanner] mActiveBehaviorList size=%zu before push to behavior_list\n",
+          mActiveBehaviorList.size());
+  for (auto& beh : mActiveBehaviorList) {
+    fprintf(stderr, "[AttackPlanner]   candidate type=%d eval=%.2f\n", beh.GetType(), beh.mEvaluation);
+  }
+
   if (!mActiveBehaviorList.empty()) {
     mActiveBehaviorList.sort(std::greater<ActiveBehavior>());
 

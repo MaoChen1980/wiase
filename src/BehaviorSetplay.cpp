@@ -94,6 +94,10 @@ void BehaviorSetplayPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
 
   setplay.mBuffer = 0.5;
 
+  // Debug: print play mode
+  fprintf(stderr, "[SetplayPlanner] unum=%d play_mode=%d IsKickable=%d\n",
+          mSelfState.GetUnum(), mWorldState.GetPlayMode(), mSelfState.IsKickable());
+
   if (mWorldState.GetPlayMode() != PM_Play_On) {
     if (mWorldState.GetPlayMode() == PM_Before_Kick_Off) {
       setplay.mDetailType = BDT_Setplay_Move;
@@ -108,6 +112,8 @@ void BehaviorSetplayPlanner::Plan(std::list<ActiveBehavior> &behavior_list) {
           Evaluation::instance().EvaluatePosition(setplay.mTarget, true);
 
       behavior_list.push_back(setplay);
+      fprintf(stderr, "[SetplayPlanner] ADDED BT_Setplay (BeforeKickOff) to behavior_list size now=%zu\n",
+              behavior_list.size());
     } else if (mWorldState.GetPlayMode() < PM_Our_Mode) {
       if (mPositionInfo.GetClosestTeammateToBall() == mSelfState.GetUnum()) {
         if (!mSelfState.IsKickable()) {

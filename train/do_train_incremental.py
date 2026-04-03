@@ -143,7 +143,9 @@ def load_data(data_dir, max_samples=MAX_SAMPLES):
     """从目录加载所有json数据文件"""
     print(f"Loading data from {data_dir}...")
 
-    json_files = glob.glob(os.path.join(data_dir, "data_*.json"))
+    # 匹配 rl_data_*.json 和 data_*.json 文件
+    json_files = glob.glob(os.path.join(data_dir, "rl_data_*.json"))
+    json_files.extend(glob.glob(os.path.join(data_dir, "data_*.json")))
     print(f"Found {len(json_files)} data files")
 
     all_lines = []

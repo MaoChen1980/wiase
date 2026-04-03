@@ -79,6 +79,17 @@ Player::~Player() {
         collector->Save(filename);
         fprintf(stderr, "[DataCollector] Saved %d samples to %s\n", collector->NumSamples(), filename);
     }
+
+    // RL: 保存强化学习序列数据
+    if (collector && collector->GetRewardedCount() > 0) {
+        char filename[256];
+        snprintf(filename, sizeof(filename), "%s/rl_data_%d_%d.json",
+                 PlayerParam::instance().logDir().c_str(),
+                 (int)time(NULL), (int)getpid());
+        collector->SaveSequence(filename);
+        fprintf(stderr, "[DataCollector] Saved %d RL samples to %s\n", collector->GetRewardedCount(), filename);
+    }
+
     delete mpDecisionTree;
 }
 
