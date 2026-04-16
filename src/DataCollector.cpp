@@ -24,6 +24,31 @@ DataCollector::DataCollector()
 
 DataCollector::~DataCollector() {}
 
+/**
+ * BuildGlobalFeatures - Constructs the 109-dimensional global state feature vector
+ *
+ * Feature Layout (indices 0-108):
+ *   [0-1]   Ball position X/Y
+ *   [2-3]   Ball velocity X/Y
+ *   [4-5]   Self position X/Y
+ *   [6-7]   Self velocity X/Y
+ *   [8]     Self body direction (degrees)
+ *   [9]     Self is goalkeeper (1.0/0.0)
+ *   [10]    Ball is kickable (self to ball < kickable_area)
+ *   [11-32] Teammate 1-11 positions X/Y (22) - 99.0 if dead
+ *   [33-54] Teammate 1-11 velocities X/Y (22) - 0 if dead
+ *   [55-76] Opponent 1-11 positions X/Y (22) - 99.0 if dead
+ *   [77-98] Opponent 1-11 velocities X/Y (22) - 0 if dead
+ *   [99]    Play mode (enum value)
+ *   [100]   Ball ownership (reserved, always 0)
+ *   [101-102] Left goalkeeper position X/Y
+ *   [103-104] Left goalkeeper velocity X/Y
+ *   [105-106] Right goalkeeper position X/Y
+ *   [107-108] Right goalkeeper velocity X/Y
+ *
+ * @param agent Reference to the agent (provides access to world state)
+ * @return Vector of 109 float features
+ */
 std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
     std::vector<float> features(kNumGlobalFeatures, 0.0f);
 
@@ -33,34 +58,34 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
 
     int idx = 0;
 
-    // Ball position X/Y (2)
+    // [0-1] Ball position X/Y
     features[idx++] = static_cast<float>(ball.GetPos().X());
     features[idx++] = static_cast<float>(ball.GetPos().Y());
 
-    // Ball velocity X/Y (2)
+    // [2-3] Ball velocity X/Y
     features[idx++] = static_cast<float>(ball.GetVel().X());
     features[idx++] = static_cast<float>(ball.GetVel().Y());
 
-    // Self position X/Y (2)
+    // [4-5] Self position X/Y
     features[idx++] = static_cast<float>(self.GetPos().X());
     features[idx++] = static_cast<float>(self.GetPos().Y());
 
-    // Self velocity X/Y (2)
+    // [6-7] Self velocity X/Y
     features[idx++] = static_cast<float>(self.GetVel().X());
     features[idx++] = static_cast<float>(self.GetVel().Y());
 
-    // Self body direction (1)
+    // [8] Self body direction
     features[idx++] = static_cast<float>(self.GetBodyDir());
 
-    // Self is goalkeeper (1)
+    // [9] Self is goalkeeper
     features[idx++] = static_cast<float>(self.IsGoalie());
 
-    // Ball is kickable: self to ball distance < kickable_area (1)
+    // [10] Ball is kickable: self to ball distance < kickable_area
     double self_to_ball_dist = self.GetPos().Dist(ball.GetPos());
     double kickable_range = ServerParam::instance().kickableArea();
     features[idx++] = static_cast<float>(self_to_ball_dist < kickable_range ? 1.0f : 0.0f);
 
-    // Teammate 1-11 position X/Y (22)
+    // [11-32] Teammate 1-11 position X/Y (22)
     for (int i = 1; i <= 11; ++i) {
         const PlayerState& tm = world.GetTeammate(i);
         if (tm.IsAlive()) {
@@ -72,7 +97,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         }
     }
 
-    // Teammate 1-11 velocity X/Y (22)
+    // [33-54] Teammate 1-11 velocity X/Y (22)
     for (int i = 1; i <= 11; ++i) {
         const PlayerState& tm = world.GetTeammate(i);
         if (tm.IsAlive()) {
@@ -84,7 +109,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         }
     }
 
-    // Opponent 1-11 position X/Y (22)
+    // [55-76] Opponent 1-11 position X/Y (22)
     for (int i = 1; i <= 11; ++i) {
         const PlayerState& opp = world.GetOpponent(i);
         if (opp.IsAlive()) {
@@ -96,7 +121,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         }
     }
 
-    // Opponent 1-11 velocity X/Y (22)
+    // [77-98] Opponent 1-11 velocity X/Y (22)
     for (int i = 1; i <= 11; ++i) {
         const PlayerState& opp = world.GetOpponent(i);
         if (opp.IsAlive()) {
@@ -108,13 +133,13 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         }
     }
 
-    // Play mode (1)
+    // [99] Play mode
     features[idx++] = static_cast<float>(world.GetPlayMode());
 
-    // Ball ownership (1) - simplified
+    // [100] Ball ownership (reserved)
     features[idx++] = 0.0f;
 
-    // Left goalkeeper position X/Y (2)
+    // [101-102] Left goalkeeper position X/Y
     Unum left_goalie = world.GetTeammateGoalieUnum();
     if (left_goalie > 0) {
         const PlayerState& goalie = world.GetTeammate(left_goalie);
@@ -125,7 +150,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         features[idx++] = 0.0f;
     }
 
-    // Left goalkeeper velocity X/Y (2)
+    // [103-104] Left goalkeeper velocity X/Y
     if (left_goalie > 0) {
         const PlayerState& goalie = world.GetTeammate(left_goalie);
         features[idx++] = static_cast<float>(goalie.GetVel().X());
@@ -135,7 +160,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         features[idx++] = 0.0f;
     }
 
-    // Right goalkeeper position X/Y (2)
+    // [105-106] Right goalkeeper position X/Y
     Unum right_goalie = world.GetOpponentGoalieUnum();
     if (right_goalie > 0) {
         const PlayerState& goalie = world.GetOpponent(right_goalie);
@@ -146,7 +171,7 @@ std::vector<float> DataCollector::BuildGlobalFeatures(const Agent& agent) {
         features[idx++] = 0.0f;
     }
 
-    // Right goalkeeper velocity X/Y (2)
+    // [107-108] Right goalkeeper velocity X/Y
     if (right_goalie > 0) {
         const PlayerState& goalie = world.GetOpponent(right_goalie);
         features[idx++] = static_cast<float>(goalie.GetVel().X());

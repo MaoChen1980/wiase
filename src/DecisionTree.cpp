@@ -105,6 +105,24 @@ ActiveBehavior DecisionTree::Search(Agent &agent, int step) {
   }
 }
 
+/**
+ * GetBestActiveBehavior - Selects the best behavior from candidates
+ *
+ * Selection Strategy (in order):
+ *  1. Force Shoot (RL exploration): If any BT_Shoot exists, always select it
+ *     - This ensures RL can learn from every shoot attempt
+ *  2. NN-based Selection: If NN loaded, forward-pass all candidates, pick highest value
+ *  3. Rule-based Fallback: Sort by mEvaluation heuristic, pick highest
+ *
+ * RL Data Collection:
+ *  - All candidates added to sequence buffer regardless of selection method
+ *  - On dribble/shoot selection, StartDribble/ShootTracking() is called
+ *  - Later CheckDribbleSuccess/CheckShootResult() will assign rewards
+ *
+ * @param agent Reference to the agent
+ * @param behavior_list List of candidate ActiveBehaviors from all planners
+ * @return The selected ActiveBehavior to execute
+ */
 ActiveBehavior
 DecisionTree::GetBestActiveBehavior(Agent &agent,
                                     std::list<ActiveBehavior> &behavior_list) {
@@ -115,6 +133,7 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
   CollectAllCandidates(agent);
 
   // RL: 添加所有候选到序列缓冲区（无论NN是否加载）
+  // 收集数据用于训练，不管最后选哪个
   for (auto& beh : behavior_list) {
     // Build 113-dim feature vector for this candidate
     std::vector<float> features = m_data_collector.BuildFeatureVector(
@@ -133,7 +152,8 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
   fprintf(stderr, "[Decision] unum=%d Before NN check: use_nn_=%d\n", agent.GetSelf().GetUnum(), use_nn_ ? 1 : 0);
     fflush(stderr);
 
-    // RL探索策略: 如果有shoot候选，100%强制选择shoot（用于学习射门RL）
+    // ========== Step 1: RL Exploration - Force Shoot ==========
+    // 如果有shoot候选，100%强制选择shoot（用于学习射门RL）
     // 这个逻辑在NN选择之前执行，确保射门能被选中
     for (auto& beh : behavior_list) {
       if (beh.GetType() == BT_Shoot) {
@@ -143,8 +163,8 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
       }
     }
 
+    // ========== Step 2: NN-based Selection ==========
     if (use_nn_ && nn_.Loaded()) {
-    // NN-based selection
     float best_value = -1e9f;
     ActiveBehavior* best = nullptr;
 
@@ -173,7 +193,8 @@ DecisionTree::GetBestActiveBehavior(Agent &agent,
     }
   }
 
-  // Rule-based selection (existing)
+  // ========== Step 3: Rule-based Fallback ==========
+  // NN not loaded or failed - use heuristic evaluation
   behavior_list.sort(std::greater<ActiveBehavior>());
 
   // RL: 如果选中带球或射门，开始追踪

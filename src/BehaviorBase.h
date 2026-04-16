@@ -126,6 +126,22 @@ private:
   Array<std::string, BT_Max> mNameMap;
 };
 
+/**
+ * ActiveBehavior - Represents a concrete behavior to be executed
+ *
+ * This class holds all information needed to execute a specific behavior:
+ * - What to do (mType, mDetailType)
+ * - Where/How to do it (mTarget, mPower, mAngle, mKickSpeed)
+ * - Evaluation for selection (mEvaluation)
+ *
+ * ActiveBehaviors are created by Planner::Plan() and selected by
+ * DecisionTree::GetBestActiveBehavior(). The selected one is then
+ * executed via Execute().
+ *
+ * Selection Comparison: Uses mEvaluation for sorting (higher is better).
+ * This allows mixing NN-based selection (which sets mEvaluation from nn_value)
+ * with rule-based selection (which uses heuristic mEvaluation).
+ */
 class ActiveBehavior {
   /** behavior type and agent pointer */
   BehaviorType mType;
@@ -145,9 +161,10 @@ public:
 
   Agent &GetAgent() const { return *mpAgent; }
 
-  bool Execute(); //不依赖于指向 behavior 的指针，但要求 BehaviorType 无误
+  bool Execute(); //!< Creates Executer via BehaviorFactory and calls Execute()
   void SubmitVisualRequest(double plus);
 
+  // Comparison operators for sorting - higher mEvaluation wins
   bool operator>(const ActiveBehavior &ab) const {
     return this->mEvaluation > ab.mEvaluation;
   }
@@ -158,24 +175,49 @@ public:
     return this->mEvaluation < ab.mEvaluation;
   }
 
+  // ========== Fields used for behavior execution ==========
+
+  /** Evaluation score - used for behavior selection (higher is better) */
   double mEvaluation;
 
-  // behavior detail
-  int mKickCycle;  // 踢球的周期，可能多脚踢球
-  AngleDeg mAngle; // 角度
-  Vector mTarget; // 目标点地位置，可以是把球踢到该点和自己跑到该点等
-  double mPower;     // dash的power
-  double mDistance;  // 目标点到自己的距离
-  double mKickSpeed; // kick的球速
-  bool mFoul;        //是否要故意犯规铲球
+  /** Number of kick cycles needed (for multi-kick actions) */
+  int mKickCycle;
 
-  KeyPlayerInfo mKeyTm;    // teammate
-  KeyPlayerInfo mKeyOpp;   // opponent
-  KeyPlayerInfo mKeyOppGB; // opponent to get ball
-  KeyPlayerInfo mKeyOppGT; // opponent to go through
+  /** Target angle for turning or direction-based actions */
+  AngleDeg mAngle;
 
-  BehaviorDetailType mDetailType; //细节类型
-  double mBuffer; //有些行为执行时的buffer是在plan时算好的，要先存到这个变量里
+  /** Target position - can be ball target, movement target, pass target, etc. */
+  Vector mTarget;
+
+  /** Dash power or kick power depending on behavior type */
+  double mPower;
+
+  /** Distance from self to mTarget */
+  double mDistance;
+
+  /** Kick speed for kick/pass/shoot behaviors */
+  double mKickSpeed;
+
+  /** Whether this behavior involves intentional fouling */
+  bool mFoul;
+
+  /** Key teammate info (for pass evaluation, etc.) */
+  KeyPlayerInfo mKeyTm;
+
+  /** Key opponent info (for mark/block evaluation, etc.) */
+  KeyPlayerInfo mKeyOpp;
+
+  /** Opponent closest to ball (for intercept evaluation) */
+  KeyPlayerInfo mKeyOppGB;
+
+  /** Opponent in the way (for dribble/shoot evaluation) */
+  KeyPlayerInfo mKeyOppGT;
+
+  /** Sub-type detail for more precise behavior classification */
+  BehaviorDetailType mDetailType;
+
+  /** Pre-computed buffer value (execution context, computed at Plan time) */
+  double mBuffer;
 };
 
 class BehaviorAttackData {
